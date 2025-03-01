@@ -1,6 +1,6 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 
 interface AuthContextProps {
@@ -20,6 +20,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Check if Supabase is configured
+    if (!isSupabaseConfigured()) {
+      console.error("Supabase is not properly configured. Please check your environment variables.");
+      setLoading(false);
+      return;
+    }
+
     // Initial auth check
     const checkUser = async () => {
       try {
@@ -57,23 +64,52 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    return await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    if (!isSupabaseConfigured()) {
+      return { error: { message: "Supabase is not properly configured" } };
+    }
+
+    try {
+      return await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+    } catch (error) {
+      console.error("Sign in error:", error);
+      return { error };
+    }
   };
 
   const signUp = async (email: string, password: string) => {
-    return await supabase.auth.signUp({
-      email,
-      password,
-    });
+    if (!isSupabaseConfigured()) {
+      return { error: { message: "Supabase is not properly configured" } };
+    }
+
+    try {
+      return await supabase.auth.signUp({
+        email,
+        password,
+      });
+    } catch (error) {
+      console.error("Sign up error:", error);
+      return { error };
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
+    if (!isSupabaseConfigured()) {
+      console.error("Supabase is not properly configured");
+      setUser(null);
+      setSession(null);
+      return;
+    }
+
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
+    } catch (error) {
+      console.error("Sign out error:", error);
+    }
   };
 
   return (

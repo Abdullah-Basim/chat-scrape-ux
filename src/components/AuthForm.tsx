@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 interface AuthFormProps {
   mode: 'signin' | 'signup';
@@ -21,9 +23,22 @@ const AuthForm = ({ mode }: AuthFormProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { signIn, signUp } = useAuth();
+  
+  // Check if Supabase is configured
+  const supabaseConfigured = isSupabaseConfigured();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!supabaseConfigured) {
+      toast({
+        title: "Configuration Error",
+        description: "Supabase is not configured. Please set the proper environment variables.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -57,6 +72,7 @@ const AuthForm = ({ mode }: AuthFormProps) => {
         description: error.message || "An unexpected error occurred",
         variant: "destructive",
       });
+      console.error("Auth error:", error);
     } finally {
       setLoading(false);
     }
@@ -64,6 +80,15 @@ const AuthForm = ({ mode }: AuthFormProps) => {
 
   return (
     <Card className="w-full max-w-md p-6 bg-card/50 backdrop-blur-sm border border-border/50">
+      {!supabaseConfigured && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Supabase is not properly configured. Please set the VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2 text-center">
           <h1 className="text-2xl font-bold">
@@ -105,7 +130,7 @@ const AuthForm = ({ mode }: AuthFormProps) => {
         <Button 
           type="submit" 
           className="w-full" 
-          disabled={loading}
+          disabled={loading || !supabaseConfigured}
         >
           {loading ? (
             <>
