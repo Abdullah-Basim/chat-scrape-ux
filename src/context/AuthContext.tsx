@@ -1,9 +1,11 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
+import { Session, User } from '@supabase/supabase-js';
 
 interface AuthContextProps {
-  user: any | null;
+  user: User | null;
+  session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<any>;
   signUp: (email: string, password: string) => Promise<any>;
@@ -13,18 +15,25 @@ interface AuthContextProps {
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Initial auth check
     const checkUser = async () => {
       try {
-        const { data } = await supabase.auth.getUser();
-        setUser(data.user || null);
+        // Get session and user if already authenticated
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        setSession(currentSession);
+        
+        if (currentSession?.user) {
+          setUser(currentSession.user);
+        }
       } catch (error) {
         console.error("Auth check error:", error);
         setUser(null);
+        setSession(null);
       } finally {
         setLoading(false);
       }
@@ -32,8 +41,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Subscribe to auth changes
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setUser(session?.user || null);
+      async (event, newSession) => {
+        setSession(newSession);
+        setUser(newSession?.user || null);
         setLoading(false);
       }
     );
@@ -63,10 +73,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setSession(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

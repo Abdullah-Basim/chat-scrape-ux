@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
-import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 
 interface AuthFormProps {
   mode: 'signin' | 'signup';
@@ -20,6 +20,7 @@ const AuthForm = ({ mode }: AuthFormProps) => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { signIn, signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,31 +28,33 @@ const AuthForm = ({ mode }: AuthFormProps) => {
 
     try {
       if (mode === 'signup') {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
+        const { error } = await signUp(email, password);
 
         if (error) throw error;
         
         toast({
-          title: "Success",
+          title: "Account created",
           description: "Check your email for the confirmation link",
         });
+        
+        // Optionally redirect or show a confirmation screen
+        // navigate('/email-confirmation');
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        const { error } = await signIn(email, password);
 
         if (error) throw error;
+        
+        toast({
+          title: "Welcome back!",
+          description: "You have been successfully signed in",
+        });
         
         navigate('/dashboard');
       }
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Authentication error",
+        description: error.message || "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
