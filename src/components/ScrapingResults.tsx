@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -35,14 +35,18 @@ const ScrapingResults = ({ data, status, onExtract, onExportResults }: ScrapingR
   const [copied, setCopied] = useState(false);
 
   // Update elements when data changes
-  if (data && data.elements && data.elements !== elements) {
-    setElements(data.elements);
-  }
+  useEffect(() => {
+    if (data && data.elements) {
+      setElements(data.elements);
+    }
+  }, [data]);
 
   const handleElementToggle = (id: string) => {
-    setElements(elements.map(el => 
-      el.id === id ? { ...el, selected: !el.selected } : el
-    ));
+    setElements(prevElements => 
+      prevElements.map(el => 
+        el.id === id ? { ...el, selected: !el.selected } : el
+      )
+    );
   };
 
   const handleExtract = async () => {
@@ -145,14 +149,16 @@ const ScrapingResults = ({ data, status, onExtract, onExportResults }: ScrapingR
             {elements.map((element) => (
               <div 
                 key={element.id} 
-                className="flex items-start space-x-3 p-3 rounded-md hover:bg-muted/50 transition-colors"
+                className="flex items-start space-x-3 p-3 rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
+                onClick={() => handleElementToggle(element.id)}
               >
                 <Checkbox 
                   id={`element-${element.id}`}
                   checked={element.selected}
                   onCheckedChange={() => handleElementToggle(element.id)}
+                  className="cursor-pointer"
                 />
-                <div className="space-y-1">
+                <div className="space-y-1 flex-1">
                   <label 
                     htmlFor={`element-${element.id}`}
                     className="font-medium text-sm cursor-pointer flex items-center"

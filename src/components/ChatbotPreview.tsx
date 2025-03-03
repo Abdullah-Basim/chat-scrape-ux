@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -155,12 +154,6 @@ const ChatbotPreview = ({ modelId, status }: ChatbotPreviewProps) => {
       });
     }
   };
-
-  // Simulate training progress
-  useState(() => {
-    const cleanup = simulateTraining();
-    return cleanup;
-  });
 
   if (status === 'uploading' || status === 'processing') {
     return (

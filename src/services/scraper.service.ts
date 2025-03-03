@@ -24,20 +24,46 @@ export const scrapeWebsite = async (url: string): Promise<any> => {
   }
   
   try {
-    // Make actual fetch request to get the website's data through a CORS proxy
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const response = await fetch(proxyUrl, {
-      headers: {
-        'Accept': 'text/html',
-        'User-Agent': 'Mozilla/5.0 (compatible; Scraper/1.0)'
-      }
-    });
+    // Try multiple CORS proxies in case one fails
+    const corsProxies = [
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+      `https://corsproxy.io/?${encodeURIComponent(url)}`,
+      `https://cors-anywhere.herokuapp.com/${url}`
+    ];
     
-    if (!response.ok) {
-      throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+    let html = '';
+    let proxySuccess = false;
+    
+    // Try each proxy until one works
+    for (const proxyUrl of corsProxies) {
+      try {
+        console.log(`Trying CORS proxy: ${proxyUrl.split('?')[0]}`);
+        const response = await fetch(proxyUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'text/html',
+            'User-Agent': 'Mozilla/5.0 (compatible; WebScraper/1.0)'
+          },
+          timeout: 15000 // 15 second timeout
+        });
+        
+        if (response.ok) {
+          html = await response.text();
+          console.log(`Successfully fetched data using proxy: ${proxyUrl.split('?')[0]}`);
+          console.log(`Received ${html.length} characters of HTML`);
+          proxySuccess = true;
+          break;
+        } else {
+          console.warn(`Proxy ${proxyUrl.split('?')[0]} returned status: ${response.status}`);
+        }
+      } catch (error) {
+        console.warn(`Error with proxy ${proxyUrl.split('?')[0]}:`, error);
+      }
     }
     
-    const html = await response.text();
+    if (!proxySuccess || !html) {
+      throw new Error(`Could not fetch ${url} through any available CORS proxy. Please try another URL.`);
+    }
     
     // Parse HTML to extract elements
     const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
@@ -46,6 +72,9 @@ export const scrapeWebsite = async (url: string): Promise<any> => {
     const pMatches = [...html.matchAll(/<p[^>]*>(.*?)<\/p>/gi)];
     const aMatches = [...html.matchAll(/<a[^>]*href=["'](.*?)["'][^>]*>(.*?)<\/a>/gi)];
     const imgMatches = [...html.matchAll(/<img[^>]*src=["'](.*?)["'][^>]*>/gi)];
+    
+    // Log what we found
+    console.log(`Found elements: ${titleMatch ? 1 : 0} title, ${h1Matches.length} h1, ${h2Matches.length} h2, ${pMatches.length} p, ${aMatches.length} links, ${imgMatches.length} images`);
     
     // Create elements array from the parsed data
     const elements = [
@@ -94,6 +123,18 @@ export const scrapeWebsite = async (url: string): Promise<any> => {
       }))
     ].filter(Boolean);
     
+    // If we didn't find any elements, show an error
+    if (elements.length === 0) {
+      throw new Error(`No extractable elements found on ${url}. Please try another website.`);
+    }
+    
+    // Auto-select the first element to provide a better user experience
+    if (elements.length > 0) {
+      elements[0].selected = true;
+    }
+    
+    console.log(`Returning ${elements.length} elements from ${url}`);
+    
     return {
       url: url,
       elements: elements,
@@ -107,6 +148,7 @@ export const scrapeWebsite = async (url: string): Promise<any> => {
 
 // Helper function to strip HTML tags
 const stripTags = (html: string): string => {
+  if (!html) return '';
   return html.replace(/<\/?[^>]+(>|$)/g, "").trim();
 };
 

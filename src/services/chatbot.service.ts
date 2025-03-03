@@ -15,7 +15,7 @@ export const uploadChatbotData = async (
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 2500));
   
-  // Simulate file validation
+  // Validate inputs
   if (!csvFile && pdfFiles.length === 0) {
     return { 
       success: false, 
@@ -24,27 +24,31 @@ export const uploadChatbotData = async (
   }
   
   try {
-    // In a real app, we'd upload the files to a server
-    // For the demo, we'll simulate a successful upload
     // Read file contents for training
     let fileContents = '';
     
     if (csvFile) {
       fileContents += await csvFile.text();
+      console.log(`Processed CSV file: ${csvFile.name} (${Math.round(csvFile.size/1024)} KB)`);
     }
     
     // Read all PDF files as text (simplified for demo)
     for (const pdfFile of pdfFiles) {
       // In a real app, we'd use a PDF parser
-      fileContents += `Content from ${pdfFile.name}`;
+      fileContents += `Content from ${pdfFile.name} (${Math.round(pdfFile.size/1024)} KB)\n`;
+      console.log(`Processed PDF file: ${pdfFile.name} (${Math.round(pdfFile.size/1024)} KB)`);
     }
     
     // Store the data for later use
-    localStorage.setItem('chatbot_training_data', fileContents);
+    const dataId = 'data_' + Math.random().toString(36).substring(2, 10);
+    localStorage.setItem(`chatbot_training_data_${dataId}`, fileContents);
+    localStorage.setItem(`chatbot_name_${dataId}`, chatbotName);
+    
+    console.log(`Created training data with ID: ${dataId}`);
     
     return { 
       success: true, 
-      dataId: 'data_' + Math.random().toString(36).substring(2, 10)
+      dataId: dataId
     };
   } catch (error) {
     console.error('Error uploading chatbot data:', error);
@@ -69,17 +73,30 @@ export const fineTuneChatbotModel = async (
   
   try {
     // Get the training data
-    const trainingData = localStorage.getItem('chatbot_training_data') || '';
+    const trainingData = localStorage.getItem(`chatbot_training_data_${dataId}`) || '';
+    const chatbotName = localStorage.getItem(`chatbot_name_${dataId}`) || modelName;
+    
+    if (!trainingData) {
+      console.error(`Training data with ID ${dataId} not found`);
+      return {
+        success: false,
+        error: 'Training data not found'
+      };
+    }
     
     // Create a model ID that includes the model name for better context
     const modelId = `${modelName.replace(/\s+/g, '_').toLowerCase()}_${Math.random().toString(36).substring(2, 10)}`;
     
-    // Store some model metadata for later use
+    // Store model metadata for later use
     localStorage.setItem(`chatbot_model_${modelId}`, JSON.stringify({
-      name: modelName,
+      name: chatbotName,
+      modelName: modelName,
       personalized: personalized,
-      trainingData: trainingData.substring(0, 500) + '...' // Store a sample for context
+      trainingData: trainingData.substring(0, 5000), // Store a sample for context
+      createdAt: new Date().toISOString()
     }));
+    
+    console.log(`Created model with ID: ${modelId}`);
     
     return { 
       success: true, 
@@ -104,11 +121,20 @@ export const getChatbotResponse = async (
   try {
     // Get model metadata
     const modelDataStr = localStorage.getItem(`chatbot_model_${modelId}`);
-    const modelData = modelDataStr ? JSON.parse(modelDataStr) : {};
+    
+    if (!modelDataStr) {
+      console.error(`Model with ID ${modelId} not found`);
+      throw new Error('Model not found');
+    }
+    
+    const modelData = JSON.parse(modelDataStr);
+    
+    console.log(`Using model: ${modelData.name}`);
+    console.log(`Training data sample: ${modelData.trainingData?.substring(0, 100)}...`);
     
     // Create a prompt that includes the model context and training data
     const enhancedPrompt = `
-      You are a helpful assistant named ${modelData.name || modelId}. 
+      You are a helpful AI assistant named ${modelData.name || 'Assistant'}. 
       You were trained on the following data:
       ${modelData.trainingData || 'General customer service information'}
       
@@ -116,20 +142,26 @@ export const getChatbotResponse = async (
       "${message}"
     `;
     
+    console.log('Sending enhanced prompt to Gemini API');
+    
     // Use Gemini to get an intelligent response
     const response = await askGeminiForHelp(enhancedPrompt);
     
     // If we got a valid response, return it
     if (response && response.trim()) {
+      console.log(`Got response from Gemini API: ${response.substring(0, 100)}...`);
       return { message: response };
     } else {
+      console.error('Empty response from Gemini');
       throw new Error('Empty response from Gemini');
     }
   } catch (error) {
     console.error("Error getting chatbot response:", error);
     
     // Fallback to simple responses if API fails
-    return { message: generateSimpleResponse(message) };
+    const fallbackResponse = generateSimpleResponse(message);
+    console.log(`Using fallback response: ${fallbackResponse.substring(0, 100)}...`);
+    return { message: fallbackResponse };
   }
 };
 

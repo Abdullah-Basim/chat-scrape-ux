@@ -69,37 +69,53 @@ const ScraperForm = ({ onResultsReceived, onStatusChange }: ScraperFormProps) =>
     }
   };
 
-  // Helper function to directly analyze a URL without form submission
-  const analyzeUrlDirectly = (exampleUrl: string) => {
-    setUrl(exampleUrl);
-    setIsAnalyzing(true);
-    onStatusChange('loading');
+  // Improved function for more reliable direct analysis
+  const analyzeExampleWebsite = (exampleUrl: string) => {
+    if (isAnalyzing) return; // Prevent duplicate calls
     
-    scrapeWebsite(exampleUrl)
-      .then(results => {
-        if (results) {
-          onResultsReceived(results);
-          onStatusChange('success');
+    console.log("Analyzing example website:", exampleUrl);
+    setUrl(exampleUrl);
+    
+    // Use setTimeout to ensure the URL is set before submitting
+    setTimeout(() => {
+      setIsAnalyzing(true);
+      onStatusChange('loading');
+      
+      scrapeWebsite(exampleUrl)
+        .then(results => {
+          if (results) {
+            onResultsReceived(results);
+            onStatusChange('success');
+            toast({
+              title: "Analysis Complete",
+              description: "Website has been successfully analyzed",
+            });
+          } else {
+            throw new Error("Failed to analyze website");
+          }
+        })
+        .catch(error => {
+          console.error("Scraping error:", error);
+          onStatusChange('error');
           toast({
-            title: "Analysis Complete",
-            description: "Website has been successfully analyzed",
+            title: "Error",
+            description: error instanceof Error ? error.message : "An error occurred while analyzing the website. Please try again.",
+            variant: "destructive",
           });
-        } else {
-          throw new Error("Failed to analyze website");
-        }
-      })
-      .catch(error => {
-        console.error("Scraping error:", error);
-        onStatusChange('error');
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "An error occurred while analyzing the website. Please try again.",
-          variant: "destructive",
+        })
+        .finally(() => {
+          setIsAnalyzing(false);
         });
-      })
-      .finally(() => {
-        setIsAnalyzing(false);
-      });
+    }, 10);
+  };
+
+  // Auto-trigger scrape for first example site if there's no URL input
+  // This helps users see the app working immediately
+  const handleAutoScrape = () => {
+    if (!url && !isAnalyzing && EXAMPLE_WEBSITES.length > 0) {
+      console.log("Auto-scraping first example website");
+      analyzeExampleWebsite(EXAMPLE_WEBSITES[0]);
+    }
   };
 
   return (
@@ -150,7 +166,7 @@ const ScraperForm = ({ onResultsReceived, onStatusChange }: ScraperFormProps) =>
                 key={index}
                 variant="ghost"
                 className="w-full justify-start text-primary/80 hover:text-primary text-sm h-auto py-1"
-                onClick={() => analyzeUrlDirectly(site)}
+                onClick={() => analyzeExampleWebsite(site)}
                 disabled={isAnalyzing}
                 type="button"
               >
