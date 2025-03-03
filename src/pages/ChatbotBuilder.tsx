@@ -7,19 +7,40 @@ import { Button } from "@/components/ui/button";
 import { HelpCircle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { askGeminiForHelp } from '@/services/gemini.service';
+import { useAuth } from '@/context/AuthContext';
+import { saveLLMHistory } from '@/lib/supabase';
 
 const ChatbotBuilder = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [modelId, setModelId] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'uploading' | 'processing' | 'success' | 'error'>('idle');
   const [isGeminiHelping, setIsGeminiHelping] = useState(false);
 
   const handleModelCreated = (newModelId: string) => {
     setModelId(newModelId);
+    
+    // Save model creation to history if user is logged in
+    if (user) {
+      saveLLMHistory(user.id, 'chatbot', {
+        action: 'model_created',
+        modelId: newModelId,
+        timestamp: new Date().toISOString()
+      });
+    }
   };
 
   const handleStatusChange = (newStatus: 'idle' | 'uploading' | 'processing' | 'success' | 'error') => {
     setStatus(newStatus);
+    
+    // Save status changes to history if user is logged in
+    if (user && newStatus !== 'idle') {
+      saveLLMHistory(user.id, 'chatbot', {
+        action: 'status_changed',
+        status: newStatus,
+        timestamp: new Date().toISOString()
+      });
+    }
   };
 
   const askForGeminiHelp = async () => {
@@ -33,6 +54,14 @@ const ChatbotBuilder = () => {
         description: helpResponse || "I can help you create a custom chatbot that's tailored to your needs. Try uploading comprehensive and diverse data for best results.",
         duration: 8000,
       });
+      
+      // Save Gemini help request to history if user is logged in
+      if (user) {
+        saveLLMHistory(user.id, 'chatbot', {
+          action: 'gemini_help_requested',
+          timestamp: new Date().toISOString()
+        });
+      }
     } catch (error) {
       console.error("Gemini help error:", error);
       toast({

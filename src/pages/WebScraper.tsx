@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { Separator } from "@/components/ui/separator";
 import ScraperForm from "@/components/ScraperForm";
@@ -8,6 +8,8 @@ import { extractSelectedElements, exportResults } from '@/services/scraper.servi
 import { askGeminiForHelp } from '@/services/gemini.service';
 import { Button } from "@/components/ui/button";
 import { HelpCircle } from "lucide-react";
+import { useAuth } from '@/context/AuthContext';
+import { saveLLMHistory } from '@/lib/supabase';
 
 interface ScrapingData {
   url: string;
@@ -22,6 +24,7 @@ interface ScrapingData {
 
 const WebScraper = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [scrapingData, setScrapingData] = useState<ScrapingData | null>(null);
   const [extractedData, setExtractedData] = useState<any>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -29,6 +32,15 @@ const WebScraper = () => {
 
   const handleResultsReceived = (results: any) => {
     setScrapingData(results);
+    
+    // Save scraping session to history if user is logged in
+    if (user && results) {
+      saveLLMHistory(user.id, 'scraper', {
+        action: 'website_analyzed',
+        url: results.url,
+        timestamp: new Date().toISOString()
+      });
+    }
   };
 
   const handleStatusChange = (newStatus: 'idle' | 'loading' | 'success' | 'error') => {
@@ -40,6 +52,17 @@ const WebScraper = () => {
     
     const extracted = await extractSelectedElements(scrapingData.url, selectedElements);
     setExtractedData(extracted);
+    
+    // Save extraction to history if user is logged in
+    if (user && extracted) {
+      saveLLMHistory(user.id, 'scraper', {
+        action: 'data_extracted',
+        url: scrapingData.url,
+        elements: selectedElements.length,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
     return extracted;
   };
 
@@ -52,6 +75,15 @@ const WebScraper = () => {
         title: `Export Successful`,
         description: `Data has been exported as ${format.toUpperCase()}`,
       });
+      
+      // Save export to history if user is logged in
+      if (user) {
+        saveLLMHistory(user.id, 'scraper', {
+          action: 'data_exported',
+          format: format,
+          timestamp: new Date().toISOString()
+        });
+      }
     } catch (error) {
       console.error("Export error:", error);
       toast({
@@ -73,6 +105,14 @@ const WebScraper = () => {
         description: helpResponse || "I can help you extract data from websites efficiently. Try starting with a simple page structure for best results.",
         duration: 8000,
       });
+      
+      // Save Gemini help request to history if user is logged in
+      if (user) {
+        saveLLMHistory(user.id, 'scraper', {
+          action: 'gemini_help_requested',
+          timestamp: new Date().toISOString()
+        });
+      }
     } catch (error) {
       console.error("Gemini help error:", error);
       toast({

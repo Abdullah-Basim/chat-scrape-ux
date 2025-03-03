@@ -29,70 +29,116 @@ const mockExtractedData = {
 export const scrapeWebsite = async (url: string): Promise<any> => {
   console.log(`Scraping website: ${url}`);
   
+  // Validate URL format
+  try {
+    new URL(url);
+  } catch (e) {
+    console.error('Invalid URL format:', url);
+    throw new Error('Invalid URL format. Please enter a valid URL including http:// or https://');
+  }
+  
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 2000));
   
-  // Simulate success or failure based on URL
-  if (url.includes('error') || url.includes('fail')) {
-    return null;
+  try {
+    // Simulate success or failure based on URL
+    if (url.includes('error') || url.includes('fail')) {
+      return null;
+    }
+    
+    // For demo purposes, modify elements based on domain
+    const domain = new URL(url).hostname;
+    const customizedElements = mockElements.map(element => ({
+      ...element,
+      sample: element.sample.includes('Example') 
+        ? element.sample.replace('Example', domain) 
+        : element.sample
+    }));
+    
+    return {
+      url: url,
+      elements: customizedElements,
+    };
+  } catch (error) {
+    console.error('Error in scrapeWebsite:', error);
+    throw new Error('Failed to analyze website. Please try again.');
   }
-  
-  return {
-    url: url,
-    elements: mockElements,
-  };
 };
 
 // Simulate extracting selected elements
 export const extractSelectedElements = async (url: string, selectedElements: string[]): Promise<any> => {
   console.log(`Extracting elements from ${url}:`, selectedElements);
   
+  if (!selectedElements || selectedElements.length === 0) {
+    throw new Error('No elements selected for extraction');
+  }
+  
   // Simulate processing delay
   await new Promise(resolve => setTimeout(resolve, 3000));
   
-  // Return mock data filtered by selected elements
-  const result: Record<string, any> = {};
-  
-  selectedElements.forEach(id => {
-    const element = mockElements.find(el => el.id === id);
-    if (element) {
-      const key = element.name;
-      result[key] = mockExtractedData[key as keyof typeof mockExtractedData] || `Sample data for ${key}`;
-    }
-  });
-  
-  return result;
+  try {
+    // Return mock data filtered by selected elements
+    const result: Record<string, any> = {};
+    
+    selectedElements.forEach(id => {
+      const element = mockElements.find(el => el.id === id);
+      if (element) {
+        const key = element.name;
+        result[key] = mockExtractedData[key as keyof typeof mockExtractedData] || `Sample data for ${key}`;
+      }
+    });
+    
+    // Add domain-specific info to results
+    const domain = new URL(url).hostname;
+    result['Source URL'] = url;
+    result['Extraction Date'] = new Date().toISOString();
+    result['Domain'] = domain;
+    
+    return result;
+  } catch (error) {
+    console.error('Error in extractSelectedElements:', error);
+    throw new Error('Failed to extract data. Please try again.');
+  }
 };
 
 // Export results as a file
 export const exportResults = (data: any, format: 'json' | 'csv'): void => {
+  if (!data || Object.keys(data).length === 0) {
+    throw new Error('No data to export');
+  }
+  
   let content: string;
   let filename: string;
   let type: string;
   
-  if (format === 'json') {
-    content = JSON.stringify(data, null, 2);
-    filename = 'scraped-data.json';
-    type = 'application/json';
-  } else {
-    // Simple CSV conversion (would be more complex in a real app)
-    const headers = Object.keys(data).join(',');
-    const values = Object.values(data).map(v => 
-      typeof v === 'object' ? JSON.stringify(v) : v
-    ).join(',');
-    content = `${headers}\n${values}`;
-    filename = 'scraped-data.csv';
-    type = 'text/csv';
+  try {
+    if (format === 'json') {
+      content = JSON.stringify(data, null, 2);
+      filename = 'scraped-data.json';
+      type = 'application/json';
+    } else {
+      // Simple CSV conversion (would be more complex in a real app)
+      const headers = Object.keys(data).join(',');
+      const values = Object.values(data).map(v => 
+        typeof v === 'object' ? JSON.stringify(v).replace(/,/g, ';') : v
+      ).join(',');
+      content = `${headers}\n${values}`;
+      filename = 'scraped-data.csv';
+      type = 'text/csv';
+    }
+    
+    // Create a downloadable file
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Error in exportResults:', error);
+    throw new Error(`Failed to export data as ${format.toUpperCase()}`);
   }
-  
-  // Create a downloadable file
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 };
