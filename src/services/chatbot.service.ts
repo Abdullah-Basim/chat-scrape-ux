@@ -1,3 +1,4 @@
+
 // Chatbot service implementation
 import { askGeminiForHelp } from './gemini.service';
 
@@ -22,11 +23,36 @@ export const uploadChatbotData = async (
     };
   }
   
-  // Simulate successful upload
-  return { 
-    success: true, 
-    dataId: 'data_' + Math.random().toString(36).substring(2, 10)
-  };
+  try {
+    // In a real app, we'd upload the files to a server
+    // For the demo, we'll simulate a successful upload
+    // Read file contents for training
+    let fileContents = '';
+    
+    if (csvFile) {
+      fileContents += await csvFile.text();
+    }
+    
+    // Read all PDF files as text (simplified for demo)
+    for (const pdfFile of pdfFiles) {
+      // In a real app, we'd use a PDF parser
+      fileContents += `Content from ${pdfFile.name}`;
+    }
+    
+    // Store the data for later use
+    localStorage.setItem('chatbot_training_data', fileContents);
+    
+    return { 
+      success: true, 
+      dataId: 'data_' + Math.random().toString(36).substring(2, 10)
+    };
+  } catch (error) {
+    console.error('Error uploading chatbot data:', error);
+    return { 
+      success: false, 
+      error: 'Failed to process uploaded files'
+    };
+  }
 };
 
 // Fine-tune the chatbot model
@@ -41,11 +67,31 @@ export const fineTuneChatbotModel = async (
   // Simulate API call delay (longer for training)
   await new Promise(resolve => setTimeout(resolve, 5000));
   
-  // Simulate successful training
-  return { 
-    success: true, 
-    modelId: 'model_' + Math.random().toString(36).substring(2, 10)
-  };
+  try {
+    // Get the training data
+    const trainingData = localStorage.getItem('chatbot_training_data') || '';
+    
+    // Create a model ID that includes the model name for better context
+    const modelId = `${modelName.replace(/\s+/g, '_').toLowerCase()}_${Math.random().toString(36).substring(2, 10)}`;
+    
+    // Store some model metadata for later use
+    localStorage.setItem(`chatbot_model_${modelId}`, JSON.stringify({
+      name: modelName,
+      personalized: personalized,
+      trainingData: trainingData.substring(0, 500) + '...' // Store a sample for context
+    }));
+    
+    return { 
+      success: true, 
+      modelId: modelId
+    };
+  } catch (error) {
+    console.error('Error fine-tuning chatbot model:', error);
+    return {
+      success: false,
+      error: 'Failed to train the model'
+    };
+  }
 };
 
 // Get response from chatbot using Gemini API
@@ -56,20 +102,29 @@ export const getChatbotResponse = async (
   console.log(`Getting response from model ${modelId} for message: ${message}`);
   
   try {
-    // Use Gemini to get an intelligent response
-    const response = await askGeminiForHelp(message);
+    // Get model metadata
+    const modelDataStr = localStorage.getItem(`chatbot_model_${modelId}`);
+    const modelData = modelDataStr ? JSON.parse(modelDataStr) : {};
     
-    // Add some conversational context
+    // Create a prompt that includes the model context and training data
     const enhancedPrompt = `
-      As a customer service AI assistant named ${modelId}, respond to this question: "${message}"
-      Keep your answer helpful, friendly, and concise. If you're not sure, say so.
-      Context: You're a chatbot trained on company knowledge and FAQs.
+      You are a helpful assistant named ${modelData.name || modelId}. 
+      You were trained on the following data:
+      ${modelData.trainingData || 'General customer service information'}
+      
+      Please respond to this user message in a helpful and concise way:
+      "${message}"
     `;
     
-    // Get enhanced response
-    const enhancedResponse = await askGeminiForHelp(enhancedPrompt);
+    // Use Gemini to get an intelligent response
+    const response = await askGeminiForHelp(enhancedPrompt);
     
-    return { message: enhancedResponse || response };
+    // If we got a valid response, return it
+    if (response && response.trim()) {
+      return { message: response };
+    } else {
+      throw new Error('Empty response from Gemini');
+    }
   } catch (error) {
     console.error("Error getting chatbot response:", error);
     
@@ -119,6 +174,10 @@ export const getEmbedCode = async (modelId: string): Promise<string> => {
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 1000));
   
+  // Get model metadata for more personalized embed code
+  const modelDataStr = localStorage.getItem(`chatbot_model_${modelId}`);
+  const modelData = modelDataStr ? JSON.parse(modelDataStr) : {};
+  
   // Generate a mock embed code
   return `
 <!-- AI Chatbot Widget -->
@@ -127,8 +186,8 @@ export const getEmbedCode = async (modelId: string): Promise<string> => {
     modelId: "${modelId}",
     position: "bottom-right",
     primaryColor: "#3B82F6",
-    welcomeMessage: "Hello! How can I help you today?",
-    title: "AI Assistant"
+    welcomeMessage: "Hello! I'm ${modelData.name || 'an AI Assistant'}. How can I help you today?",
+    title: "${modelData.name || 'AI Assistant'}"
   };
 </script>
 <script src="https://cdn.aione-platform.com/chatbot-widget.js" async></script>

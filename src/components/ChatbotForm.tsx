@@ -133,12 +133,13 @@ const ChatbotForm = ({ onModelCreated, onStatusChange }: ChatbotFormProps) => {
         throw new Error(fineTuneResult.error || 'Fine-tuning failed');
       }
       
+      // Successfully created model
       onModelCreated(fineTuneResult.modelId);
       onStatusChange('success');
       
       toast({
         title: "Chatbot Created",
-        description: "Your chatbot has been successfully created and trained",
+        description: "Your chatbot has been successfully created and trained with your data",
       });
     } catch (error) {
       console.error("Chatbot creation error:", error);

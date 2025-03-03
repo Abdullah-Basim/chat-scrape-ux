@@ -11,7 +11,7 @@ export const EXAMPLE_WEBSITES = [
   'https://nytimes.com'
 ];
 
-// Simulate scraping a website - in a real app this would use server-side scraping
+// Scrape a website
 export const scrapeWebsite = async (url: string): Promise<any> => {
   console.log(`Scraping website: ${url}`);
   
@@ -26,7 +26,12 @@ export const scrapeWebsite = async (url: string): Promise<any> => {
   try {
     // Make actual fetch request to get the website's data through a CORS proxy
     const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const response = await fetch(proxyUrl);
+    const response = await fetch(proxyUrl, {
+      headers: {
+        'Accept': 'text/html',
+        'User-Agent': 'Mozilla/5.0 (compatible; Scraper/1.0)'
+      }
+    });
     
     if (!response.ok) {
       throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
@@ -34,7 +39,7 @@ export const scrapeWebsite = async (url: string): Promise<any> => {
     
     const html = await response.text();
     
-    // Parse HTML to extract elements - in a simplified way for demo
+    // Parse HTML to extract elements
     const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
     const h1Matches = [...html.matchAll(/<h1[^>]*>(.*?)<\/h1>/gi)];
     const h2Matches = [...html.matchAll(/<h2[^>]*>(.*?)<\/h2>/gi)];
@@ -45,7 +50,7 @@ export const scrapeWebsite = async (url: string): Promise<any> => {
     // Create elements array from the parsed data
     const elements = [
       titleMatch ? {
-        id: '1',
+        id: 'title-1',
         type: 'title',
         name: 'Page Title',
         sample: stripTags(titleMatch[1]),
@@ -58,28 +63,29 @@ export const scrapeWebsite = async (url: string): Promise<any> => {
         sample: stripTags(match[1]),
         selected: false
       })),
-      ...h2Matches.slice(0, 3).map((match, i) => ({
+      ...h2Matches.slice(0, 5).map((match, i) => ({
         id: `h2-${i+1}`,
         type: 'subheading',
         name: `H2 Heading ${i+1}`,
         sample: stripTags(match[1]),
         selected: false
       })),
-      ...pMatches.slice(0, 5).map((match, i) => ({
+      ...pMatches.slice(0, 7).map((match, i) => ({
         id: `p-${i+1}`,
         type: 'paragraph',
         name: `Paragraph ${i+1}`,
         sample: stripTags(match[1].substring(0, 100)) + (match[1].length > 100 ? '...' : ''),
         selected: false
       })),
-      ...aMatches.slice(0, 5).map((match, i) => ({
+      ...aMatches.slice(0, 10).map((match, i) => ({
         id: `link-${i+1}`,
         type: 'link',
         name: `Link ${i+1}`,
         sample: `${stripTags(match[2])} (${match[1]})`,
-        selected: false
+        selected: false,
+        url: match[1]
       })),
-      ...imgMatches.slice(0, 3).map((match, i) => ({
+      ...imgMatches.slice(0, 5).map((match, i) => ({
         id: `img-${i+1}`,
         type: 'image',
         name: `Image ${i+1}`,
@@ -91,7 +97,7 @@ export const scrapeWebsite = async (url: string): Promise<any> => {
     return {
       url: url,
       elements: elements,
-      rawHtml: html
+      rawHtml: html.substring(0, 10000) // Limit size
     };
   } catch (error) {
     console.error('Error in scrapeWebsite:', error);
@@ -101,10 +107,10 @@ export const scrapeWebsite = async (url: string): Promise<any> => {
 
 // Helper function to strip HTML tags
 const stripTags = (html: string): string => {
-  return html.replace(/<\/?[^>]+(>|$)/g, "");
+  return html.replace(/<\/?[^>]+(>|$)/g, "").trim();
 };
 
-// Simulate extracting selected elements
+// Extract selected elements
 export const extractSelectedElements = async (url: string, selectedElements: string[]): Promise<any> => {
   console.log(`Extracting elements from ${url}:`, selectedElements);
   
@@ -154,10 +160,11 @@ export const exportResults = (data: any, format: 'json' | 'csv'): void => {
       filename = 'scraped-data.json';
       type = 'application/json';
     } else {
-      // Simple CSV conversion (would be more complex in a real app)
+      // Convert to CSV
       const headers = Object.keys(data).join(',');
       const values = Object.values(data).map(v => 
-        typeof v === 'object' ? JSON.stringify(v).replace(/,/g, ';') : v
+        typeof v === 'string' ? `"${v.replace(/"/g, '""')}"` : 
+        typeof v === 'object' ? `"${JSON.stringify(v).replace(/"/g, '""')}"` : v
       ).join(',');
       content = `${headers}\n${values}`;
       filename = 'scraped-data.csv';

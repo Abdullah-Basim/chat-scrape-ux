@@ -69,16 +69,37 @@ const ScraperForm = ({ onResultsReceived, onStatusChange }: ScraperFormProps) =>
     }
   };
 
-  const handleExampleClick = (exampleUrl: string) => {
+  // Helper function to directly analyze a URL without form submission
+  const analyzeUrlDirectly = (exampleUrl: string) => {
     setUrl(exampleUrl);
+    setIsAnalyzing(true);
+    onStatusChange('loading');
     
-    // Submit the form with the example URL without delay
-    const form = document.querySelector('form') as HTMLFormElement;
-    if (form) {
-      setTimeout(() => {
-        form.dispatchEvent(new Event('submit', { cancelable: true }));
-      }, 100);
-    }
+    scrapeWebsite(exampleUrl)
+      .then(results => {
+        if (results) {
+          onResultsReceived(results);
+          onStatusChange('success');
+          toast({
+            title: "Analysis Complete",
+            description: "Website has been successfully analyzed",
+          });
+        } else {
+          throw new Error("Failed to analyze website");
+        }
+      })
+      .catch(error => {
+        console.error("Scraping error:", error);
+        onStatusChange('error');
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "An error occurred while analyzing the website. Please try again.",
+          variant: "destructive",
+        });
+      })
+      .finally(() => {
+        setIsAnalyzing(false);
+      });
   };
 
   return (
@@ -129,7 +150,7 @@ const ScraperForm = ({ onResultsReceived, onStatusChange }: ScraperFormProps) =>
                 key={index}
                 variant="ghost"
                 className="w-full justify-start text-primary/80 hover:text-primary text-sm h-auto py-1"
-                onClick={() => handleExampleClick(site)}
+                onClick={() => analyzeUrlDirectly(site)}
                 disabled={isAnalyzing}
                 type="button"
               >

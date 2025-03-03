@@ -1,5 +1,5 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -33,7 +33,7 @@ const ChatbotPreview = ({ modelId, status }: ChatbotPreviewProps) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'bot',
-      content: 'Hello! I\'m your AI assistant. How can I help you today?',
+      content: 'Hello! I\'m your AI assistant powered by Gemini. How can I help you today?',
       timestamp: new Date(),
     },
   ]);
@@ -49,7 +49,13 @@ const ChatbotPreview = ({ modelId, status }: ChatbotPreviewProps) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const simulateTraining = () => {
+  useEffect(() => {
+    // Automatically scroll to bottom when messages change
+    scrollToBottom();
+  }, [messages]);
+
+  useEffect(() => {
+    // Simulate training progress when processing
     if (status === 'processing') {
       let progress = 0;
       const interval = setInterval(() => {
@@ -65,7 +71,7 @@ const ChatbotPreview = ({ modelId, status }: ChatbotPreviewProps) => {
     } else if (status === 'success') {
       setTrainingProgress(100);
     }
-  };
+  }, [status]);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -89,6 +95,7 @@ const ChatbotPreview = ({ modelId, status }: ChatbotPreviewProps) => {
     }, 100);
 
     try {
+      console.log(`Sending message to chatbot: ${inputValue}`);
       const response = await getChatbotResponse(modelId, inputValue);
       
       const botMessage: Message = {
@@ -102,7 +109,7 @@ const ChatbotPreview = ({ modelId, status }: ChatbotPreviewProps) => {
         setMessages(prev => [...prev, botMessage]);
         setIsTyping(false);
         scrollToBottom();
-      }, 500);
+      }, 800);
     } catch (error) {
       console.error("Chatbot response error:", error);
       
@@ -256,7 +263,7 @@ const ChatbotPreview = ({ modelId, status }: ChatbotPreviewProps) => {
                       : 'bg-muted'
                   }`}
                 >
-                  <div className="text-sm">{message.content}</div>
+                  <div className="text-sm whitespace-pre-wrap">{message.content}</div>
                   <div className="flex items-center justify-between mt-1">
                     <div className="text-xs opacity-70">
                       {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
