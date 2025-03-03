@@ -1,31 +1,17 @@
 
-// This is a simulation of a web scraping service
-// In a real app, this would connect to your backend API
+// Web scraping service implementation
+import { supabase } from '@/lib/supabase';
 
-// Mock data for simulation purposes
-const mockElements = [
-  { id: '1', type: 'text', name: 'Main Title', sample: 'Welcome to Example Website', selected: false },
-  { id: '2', type: 'paragraph', name: 'Description', sample: 'This is an example description of the website with details about services.', selected: false },
-  { id: '3', type: 'list', name: 'Feature List', sample: 'Feature 1, Feature 2, Feature 3', selected: false },
-  { id: '4', type: 'image', name: 'Hero Image', sample: 'hero-image.jpg', selected: false },
-  { id: '5', type: 'table', name: 'Pricing Table', sample: 'Basic: $10/mo, Pro: $25/mo, Enterprise: $50/mo', selected: false },
-  { id: '6', type: 'button', name: 'CTA Button', sample: 'Get Started', selected: false },
-  { id: '7', type: 'heading', name: 'Section Title', sample: 'Our Services', selected: false },
-  { id: '8', type: 'link', name: 'Navigation Link', sample: 'About Us', selected: false },
+// Working example URLs to show the user
+export const EXAMPLE_WEBSITES = [
+  'https://news.ycombinator.com',
+  'https://wikipedia.org',
+  'https://github.com',
+  'https://reddit.com',
+  'https://nytimes.com'
 ];
 
-const mockExtractedData = {
-  'Main Title': 'Welcome to Example Website',
-  'Description': 'This is an example description of the website with details about services.',
-  'Feature List': ['Feature 1', 'Feature 2', 'Feature 3'],
-  'Pricing Table': {
-    'Basic': '$10/mo',
-    'Pro': '$25/mo',
-    'Enterprise': '$50/mo'
-  }
-};
-
-// Simulate scraping a website
+// Simulate scraping a website - in a real app this would use server-side scraping
 export const scrapeWebsite = async (url: string): Promise<any> => {
   console.log(`Scraping website: ${url}`);
   
@@ -37,32 +23,85 @@ export const scrapeWebsite = async (url: string): Promise<any> => {
     throw new Error('Invalid URL format. Please enter a valid URL including http:// or https://');
   }
   
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  
   try {
-    // Simulate success or failure based on URL
-    if (url.includes('error') || url.includes('fail')) {
-      return null;
+    // Make actual fetch request to get the website's data through a CORS proxy
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const response = await fetch(proxyUrl);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
     }
     
-    // For demo purposes, modify elements based on domain
-    const domain = new URL(url).hostname;
-    const customizedElements = mockElements.map(element => ({
-      ...element,
-      sample: element.sample.includes('Example') 
-        ? element.sample.replace('Example', domain) 
-        : element.sample
-    }));
+    const html = await response.text();
+    
+    // Parse HTML to extract elements - in a simplified way for demo
+    const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
+    const h1Matches = [...html.matchAll(/<h1[^>]*>(.*?)<\/h1>/gi)];
+    const h2Matches = [...html.matchAll(/<h2[^>]*>(.*?)<\/h2>/gi)];
+    const pMatches = [...html.matchAll(/<p[^>]*>(.*?)<\/p>/gi)];
+    const aMatches = [...html.matchAll(/<a[^>]*href=["'](.*?)["'][^>]*>(.*?)<\/a>/gi)];
+    const imgMatches = [...html.matchAll(/<img[^>]*src=["'](.*?)["'][^>]*>/gi)];
+    
+    // Create elements array from the parsed data
+    const elements = [
+      titleMatch ? {
+        id: '1',
+        type: 'title',
+        name: 'Page Title',
+        sample: stripTags(titleMatch[1]),
+        selected: false
+      } : null,
+      ...h1Matches.slice(0, 3).map((match, i) => ({
+        id: `h1-${i+1}`,
+        type: 'heading',
+        name: `H1 Heading ${i+1}`,
+        sample: stripTags(match[1]),
+        selected: false
+      })),
+      ...h2Matches.slice(0, 3).map((match, i) => ({
+        id: `h2-${i+1}`,
+        type: 'subheading',
+        name: `H2 Heading ${i+1}`,
+        sample: stripTags(match[1]),
+        selected: false
+      })),
+      ...pMatches.slice(0, 5).map((match, i) => ({
+        id: `p-${i+1}`,
+        type: 'paragraph',
+        name: `Paragraph ${i+1}`,
+        sample: stripTags(match[1].substring(0, 100)) + (match[1].length > 100 ? '...' : ''),
+        selected: false
+      })),
+      ...aMatches.slice(0, 5).map((match, i) => ({
+        id: `link-${i+1}`,
+        type: 'link',
+        name: `Link ${i+1}`,
+        sample: `${stripTags(match[2])} (${match[1]})`,
+        selected: false
+      })),
+      ...imgMatches.slice(0, 3).map((match, i) => ({
+        id: `img-${i+1}`,
+        type: 'image',
+        name: `Image ${i+1}`,
+        sample: match[1],
+        selected: false
+      }))
+    ].filter(Boolean);
     
     return {
       url: url,
-      elements: customizedElements,
+      elements: elements,
+      rawHtml: html
     };
   } catch (error) {
     console.error('Error in scrapeWebsite:', error);
-    throw new Error('Failed to analyze website. Please try again.');
+    throw new Error(`Failed to analyze website. Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
+};
+
+// Helper function to strip HTML tags
+const stripTags = (html: string): string => {
+  return html.replace(/<\/?[^>]+(>|$)/g, "");
 };
 
 // Simulate extracting selected elements
@@ -73,26 +112,24 @@ export const extractSelectedElements = async (url: string, selectedElements: str
     throw new Error('No elements selected for extraction');
   }
   
-  // Simulate processing delay
-  await new Promise(resolve => setTimeout(resolve, 3000));
-  
   try {
-    // Return mock data filtered by selected elements
+    // Get the full data again (which would be cached in a real app)
+    const { elements, rawHtml } = await scrapeWebsite(url);
+    
+    // Extract only the selected elements
     const result: Record<string, any> = {};
     
     selectedElements.forEach(id => {
-      const element = mockElements.find(el => el.id === id);
+      const element = elements.find(el => el.id === id);
       if (element) {
-        const key = element.name;
-        result[key] = mockExtractedData[key as keyof typeof mockExtractedData] || `Sample data for ${key}`;
+        result[element.name] = element.sample;
       }
     });
     
-    // Add domain-specific info to results
-    const domain = new URL(url).hostname;
+    // Add metadata
     result['Source URL'] = url;
     result['Extraction Date'] = new Date().toISOString();
-    result['Domain'] = domain;
+    result['Domain'] = new URL(url).hostname;
     
     return result;
   } catch (error) {

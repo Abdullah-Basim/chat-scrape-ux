@@ -4,8 +4,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Globe, Loader2 } from "lucide-react";
-import { scrapeWebsite } from '@/services/scraper.service';
+import { Globe, Loader2, ArrowRight } from "lucide-react";
+import { scrapeWebsite, EXAMPLE_WEBSITES } from '@/services/scraper.service';
 
 interface ScraperFormProps {
   onResultsReceived: (results: any) => void;
@@ -61,7 +61,49 @@ const ScraperForm = ({ onResultsReceived, onStatusChange }: ScraperFormProps) =>
       onStatusChange('error');
       toast({
         title: "Error",
-        description: "An error occurred while analyzing the website. Please try again.",
+        description: error instanceof Error ? error.message : "An error occurred while analyzing the website. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleExampleClick = (exampleUrl: string) => {
+    setUrl(exampleUrl);
+    // Automatically submit the form with the example URL
+    const processedUrl = exampleUrl;
+    handleSubmitUrl(processedUrl);
+  };
+
+  const handleSubmitUrl = async (processedUrl: string) => {
+    try {
+      setIsAnalyzing(true);
+      onStatusChange('loading');
+
+      const results = await scrapeWebsite(processedUrl);
+      
+      if (results) {
+        onResultsReceived(results);
+        onStatusChange('success');
+        toast({
+          title: "Analysis Complete",
+          description: "Website has been successfully analyzed",
+        });
+      } else {
+        onStatusChange('error');
+        toast({
+          title: "Analysis Failed",
+          description: "Could not analyze this website. Try another URL.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Scraping error:", error);
+      onStatusChange('error');
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An error occurred while analyzing the website. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -108,6 +150,24 @@ const ScraperForm = ({ onResultsReceived, onStatusChange }: ScraperFormProps) =>
             )}
           </Button>
         </form>
+
+        <div className="mt-6">
+          <p className="text-sm text-muted-foreground mb-2">Try these example websites:</p>
+          <div className="space-y-2">
+            {EXAMPLE_WEBSITES.map((site, index) => (
+              <Button
+                key={index}
+                variant="ghost"
+                className="w-full justify-start text-primary/80 hover:text-primary text-sm h-auto py-1"
+                onClick={() => handleExampleClick(site)}
+                disabled={isAnalyzing}
+              >
+                <ArrowRight className="mr-2 h-3 w-3" />
+                {new URL(site).hostname}
+              </Button>
+            ))}
+          </div>
+        </div>
       </div>
     </Card>
   );

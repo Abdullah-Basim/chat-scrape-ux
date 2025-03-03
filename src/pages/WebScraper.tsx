@@ -7,9 +7,10 @@ import ScrapingResults from "@/components/ScrapingResults";
 import { extractSelectedElements, exportResults } from '@/services/scraper.service';
 import { askGeminiForHelp } from '@/services/gemini.service';
 import { Button } from "@/components/ui/button";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Info } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
 import { saveLLMHistory } from '@/lib/supabase';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface ScrapingData {
   url: string;
@@ -20,6 +21,7 @@ interface ScrapingData {
     sample: string;
     selected: boolean;
   }>;
+  rawHtml?: string;
 }
 
 const WebScraper = () => {
@@ -29,6 +31,15 @@ const WebScraper = () => {
   const [extractedData, setExtractedData] = useState<any>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [isGeminiHelping, setIsGeminiHelping] = useState(false);
+  const [showUpdatedNotice, setShowUpdatedNotice] = useState(true);
+
+  useEffect(() => {
+    // Auto-dismiss the notice after 10 seconds
+    if (showUpdatedNotice) {
+      const timer = setTimeout(() => setShowUpdatedNotice(false), 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [showUpdatedNotice]);
 
   const handleResultsReceived = (results: any) => {
     setScrapingData(results);
@@ -128,6 +139,26 @@ const WebScraper = () => {
   return (
     <div className="min-h-screen pt-16 pb-24">
       <div className="container max-w-5xl mx-auto px-4">
+        {showUpdatedNotice && (
+          <Alert className="mb-6 border-primary/50 bg-primary/10">
+            <Info className="h-4 w-4 text-primary" />
+            <AlertTitle>Module Updated!</AlertTitle>
+            <AlertDescription>
+              The Web Scraper now works with real websites! Try these example sites: 
+              news.ycombinator.com, wikipedia.org, or github.com. The scraper will 
+              extract actual content from the websites you enter.
+            </AlertDescription>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="absolute top-2 right-2 h-6 w-6 p-0" 
+              onClick={() => setShowUpdatedNotice(false)}
+            >
+              ✕
+            </Button>
+          </Alert>
+        )}
+
         <div className="py-12 text-center animate-fade-up">
           <h1 className="text-3xl md:text-4xl font-bold mb-4">Web Scraping Module</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
