@@ -43,8 +43,8 @@ export const scrapeWebsite = async (url: string): Promise<any> => {
           headers: {
             'Accept': 'text/html',
             'User-Agent': 'Mozilla/5.0 (compatible; WebScraper/1.0)'
-          },
-          timeout: 15000 // 15 second timeout
+          }
+          // Removed invalid 'timeout' property
         });
         
         if (response.ok) {

@@ -13,7 +13,7 @@ export const uploadChatbotData = async (
   console.log(`PDF Files: ${pdfFiles.map(f => f.name).join(', ') || 'None'}`);
   
   // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 2500));
+  await new Promise(resolve => setTimeout(resolve, 1500));
   
   // Validate inputs
   if (!csvFile && pdfFiles.length === 0) {
@@ -26,22 +26,35 @@ export const uploadChatbotData = async (
   try {
     // Read file contents for training
     let fileContents = '';
+    let trainingData = {
+      chatbotName,
+      csvData: '',
+      pdfData: []
+    };
     
     if (csvFile) {
-      fileContents += await csvFile.text();
+      const csvContent = await csvFile.text();
+      fileContents += csvContent;
+      trainingData.csvData = csvContent;
       console.log(`Processed CSV file: ${csvFile.name} (${Math.round(csvFile.size/1024)} KB)`);
     }
     
     // Read all PDF files as text (simplified for demo)
     for (const pdfFile of pdfFiles) {
       // In a real app, we'd use a PDF parser
-      fileContents += `Content from ${pdfFile.name} (${Math.round(pdfFile.size/1024)} KB)\n`;
+      const pdfContent = `Content from ${pdfFile.name} (${Math.round(pdfFile.size/1024)} KB)\n`;
+      fileContents += pdfContent;
+      trainingData.pdfData.push({
+        name: pdfFile.name,
+        size: pdfFile.size,
+        content: pdfContent
+      });
       console.log(`Processed PDF file: ${pdfFile.name} (${Math.round(pdfFile.size/1024)} KB)`);
     }
     
     // Store the data for later use
     const dataId = 'data_' + Math.random().toString(36).substring(2, 10);
-    localStorage.setItem(`chatbot_training_data_${dataId}`, fileContents);
+    localStorage.setItem(`chatbot_training_data_${dataId}`, JSON.stringify(trainingData));
     localStorage.setItem(`chatbot_name_${dataId}`, chatbotName);
     
     console.log(`Created training data with ID: ${dataId}`);
@@ -59,7 +72,7 @@ export const uploadChatbotData = async (
   }
 };
 
-// Fine-tune the chatbot model
+// Fine-tune the chatbot model using Gemini
 export const fineTuneChatbotModel = async (
   dataId: string,
   modelName: string,
@@ -68,21 +81,24 @@ export const fineTuneChatbotModel = async (
   console.log(`Fine-tuning model: ${modelName} with dataId: ${dataId}`);
   console.log(`Personalization enabled: ${personalized}`);
   
-  // Simulate API call delay (longer for training)
-  await new Promise(resolve => setTimeout(resolve, 5000));
+  // Simulate API call delay (shorter for Gemini integration)
+  await new Promise(resolve => setTimeout(resolve, 3000));
   
   try {
     // Get the training data
-    const trainingData = localStorage.getItem(`chatbot_training_data_${dataId}`) || '';
+    const trainingDataStr = localStorage.getItem(`chatbot_training_data_${dataId}`);
     const chatbotName = localStorage.getItem(`chatbot_name_${dataId}`) || modelName;
     
-    if (!trainingData) {
+    if (!trainingDataStr) {
       console.error(`Training data with ID ${dataId} not found`);
       return {
         success: false,
         error: 'Training data not found'
       };
     }
+    
+    // Parse the training data
+    const trainingData = JSON.parse(trainingDataStr);
     
     // Create a model ID that includes the model name for better context
     const modelId = `${modelName.replace(/\s+/g, '_').toLowerCase()}_${Math.random().toString(36).substring(2, 10)}`;
@@ -92,11 +108,28 @@ export const fineTuneChatbotModel = async (
       name: chatbotName,
       modelName: modelName,
       personalized: personalized,
-      trainingData: trainingData.substring(0, 5000), // Store a sample for context
+      trainingData: trainingData,
       createdAt: new Date().toISOString()
     }));
     
     console.log(`Created model with ID: ${modelId}`);
+    
+    // Make a test call to Gemini to verify the API is working
+    const testPrompt = `
+      You are a helpful AI assistant named ${chatbotName}.
+      You specialize in answering questions based on the following training data:
+      Sample of CSV data: ${trainingData.csvData?.substring(0, 200) || "No CSV data provided"}
+      Sample of PDF data: ${trainingData.pdfData?.length > 0 ? trainingData.pdfData[0].content?.substring(0, 200) : "No PDF data provided"}
+      
+      Please respond to this test message with a short confirmation: "I am ready to assist with questions about ${chatbotName}."
+    `;
+    
+    try {
+      await askGeminiForHelp(testPrompt);
+      console.log("Successfully tested Gemini API with chatbot context");
+    } catch (error) {
+      console.warn("Gemini API test failed, but proceeding with model creation:", error);
+    }
     
     return { 
       success: true, 
@@ -130,15 +163,42 @@ export const getChatbotResponse = async (
     const modelData = JSON.parse(modelDataStr);
     
     console.log(`Using model: ${modelData.name}`);
-    console.log(`Training data sample: ${modelData.trainingData?.substring(0, 100)}...`);
+    
+    // Extract training data for context
+    let trainingContext = '';
+    
+    if (modelData.trainingData) {
+      const td = modelData.trainingData;
+      
+      if (td.csvData) {
+        // Take first few lines of CSV to provide context
+        trainingContext += `CSV Data: ${td.csvData.split('\n').slice(0, 5).join('\n')}\n\n`;
+      }
+      
+      if (td.pdfData && td.pdfData.length > 0) {
+        // Take first few PDF summaries
+        trainingContext += 'PDF Documents:\n';
+        for (let i = 0; i < Math.min(td.pdfData.length, 3); i++) {
+          trainingContext += `- ${td.pdfData[i].name}: ${td.pdfData[i].content}\n`;
+        }
+      }
+    }
     
     // Create a prompt that includes the model context and training data
     const enhancedPrompt = `
       You are a helpful AI assistant named ${modelData.name || 'Assistant'}. 
       You were trained on the following data:
-      ${modelData.trainingData || 'General customer service information'}
+      ${trainingContext || 'General customer service information'}
       
-      Please respond to this user message in a helpful and concise way:
+      Your personality is ${modelData.personalized ? 'friendly, conversational, and personalized' : 'professional and factual'}.
+      
+      When responding to user queries, you should:
+      1. Use the training data provided above to inform your responses
+      2. If you don't know something, acknowledge that rather than making up information
+      3. Keep your responses concise but thorough
+      4. ${modelData.personalized ? 'Adopt a friendly and conversational tone' : 'Keep a professional tone'}
+      
+      Please respond to this user message in a helpful way:
       "${message}"
     `;
     

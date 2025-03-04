@@ -1,8 +1,8 @@
 
 // Gemini AI service implementation
 
-// For real app, we would use an environment variable
-const GEMINI_API_KEY = "AIzaSyBgYZnzK_N7mQgYWLXDiC5NavY9iVEa64E"; // Demo API key for testing
+// Using the provided Gemini API key
+const GEMINI_API_KEY = "AIzaSyAU6hLFn74wArkLOuhqIv96YgtLaZpMA-M";
 
 // Function to ask Gemini for help with better error handling and retries
 export const askGeminiForHelp = async (query: string, retries = 2): Promise<string> => {
@@ -25,7 +25,7 @@ export const askGeminiForHelp = async (query: string, retries = 2): Promise<stri
             }
           ],
           generationConfig: {
-            temperature: 0.4, // Slightly increased for more creative responses
+            temperature: 0.4,
             topK: 40,
             topP: 0.95,
             maxOutputTokens: 1024,

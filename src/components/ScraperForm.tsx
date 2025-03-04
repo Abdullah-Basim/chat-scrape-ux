@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,16 @@ const ScraperForm = ({ onResultsReceived, onStatusChange }: ScraperFormProps) =>
   const [url, setUrl] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Add an auto-scrape for demo purposes
+  useEffect(() => {
+    // If no URL and not analyzing, automatically use the first example website
+    if (!url && !isAnalyzing && EXAMPLE_WEBSITES.length > 0) {
+      console.log("Auto-setting the first example website");
+      setUrl(EXAMPLE_WEBSITES[0]);
+    }
+  }, []);
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
     if (!url) {
@@ -69,53 +78,14 @@ const ScraperForm = ({ onResultsReceived, onStatusChange }: ScraperFormProps) =>
     }
   };
 
-  // Improved function for more reliable direct analysis
   const analyzeExampleWebsite = (exampleUrl: string) => {
     if (isAnalyzing) return; // Prevent duplicate calls
     
     console.log("Analyzing example website:", exampleUrl);
     setUrl(exampleUrl);
     
-    // Use setTimeout to ensure the URL is set before submitting
-    setTimeout(() => {
-      setIsAnalyzing(true);
-      onStatusChange('loading');
-      
-      scrapeWebsite(exampleUrl)
-        .then(results => {
-          if (results) {
-            onResultsReceived(results);
-            onStatusChange('success');
-            toast({
-              title: "Analysis Complete",
-              description: "Website has been successfully analyzed",
-            });
-          } else {
-            throw new Error("Failed to analyze website");
-          }
-        })
-        .catch(error => {
-          console.error("Scraping error:", error);
-          onStatusChange('error');
-          toast({
-            title: "Error",
-            description: error instanceof Error ? error.message : "An error occurred while analyzing the website. Please try again.",
-            variant: "destructive",
-          });
-        })
-        .finally(() => {
-          setIsAnalyzing(false);
-        });
-    }, 10);
-  };
-
-  // Auto-trigger scrape for first example site if there's no URL input
-  // This helps users see the app working immediately
-  const handleAutoScrape = () => {
-    if (!url && !isAnalyzing && EXAMPLE_WEBSITES.length > 0) {
-      console.log("Auto-scraping first example website");
-      analyzeExampleWebsite(EXAMPLE_WEBSITES[0]);
-    }
+    // Submit the form programmatically
+    handleSubmit(new Event('submit') as unknown as FormEvent);
   };
 
   return (

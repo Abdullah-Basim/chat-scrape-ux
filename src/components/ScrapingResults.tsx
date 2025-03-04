@@ -49,6 +49,16 @@ const ScrapingResults = ({ data, status, onExtract, onExportResults }: ScrapingR
     );
   };
 
+  const handleCheckboxChange = (id: string, checked: boolean | 'indeterminate') => {
+    if (typeof checked === 'boolean') {
+      setElements(prevElements => 
+        prevElements.map(el => 
+          el.id === id ? { ...el, selected: checked } : el
+        )
+      );
+    }
+  };
+
   const handleExtract = async () => {
     const selectedIds = elements.filter(el => el.selected).map(el => el.id);
     
@@ -149,16 +159,19 @@ const ScrapingResults = ({ data, status, onExtract, onExportResults }: ScrapingR
             {elements.map((element) => (
               <div 
                 key={element.id} 
-                className="flex items-start space-x-3 p-3 rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
-                onClick={() => handleElementToggle(element.id)}
+                className="flex items-start space-x-3 p-3 rounded-md hover:bg-muted/50 transition-colors"
               >
                 <Checkbox 
                   id={`element-${element.id}`}
                   checked={element.selected}
-                  onCheckedChange={() => handleElementToggle(element.id)}
-                  className="cursor-pointer"
+                  onCheckedChange={(checked) => handleCheckboxChange(element.id, checked)}
+                  className="mt-1 cursor-pointer"
+                  aria-label={`Select ${element.name}`}
                 />
-                <div className="space-y-1 flex-1">
+                <div 
+                  className="space-y-1 flex-1 cursor-pointer" 
+                  onClick={() => handleElementToggle(element.id)}
+                >
                   <label 
                     htmlFor={`element-${element.id}`}
                     className="font-medium text-sm cursor-pointer flex items-center"
