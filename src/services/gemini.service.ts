@@ -10,8 +10,8 @@ export const askGeminiForHelp = async (query: string, retries = 2): Promise<stri
   
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      // Updated URL to use the correct API version and model
-      const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent', {
+      // Updated URL to use the correct API version and model (gemini-pro instead of gemini-1.0-pro)
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -26,10 +26,10 @@ export const askGeminiForHelp = async (query: string, retries = 2): Promise<stri
             }
           ],
           generationConfig: {
-            temperature: 0.4,
+            temperature: 0.7,
             topK: 40,
             topP: 0.95,
-            maxOutputTokens: 1024,
+            maxOutputTokens: 2048,
           }
         })
       });
@@ -94,19 +94,17 @@ const getMockGeminiResponse = (query: string): string => {
   if (query.includes('You are a helpful assistant')) {
     // This is a chatbot query
     if (lowerQuery.includes('hello') || lowerQuery.includes('hi')) {
-      return "Hello! I'm your AI assistant. I'm here to help answer your questions based on the information I've been trained on.";
+      return "Hello! I'm your AI assistant powered by Gemini. I'm here to help answer your questions based on the information I've been trained on.";
     }
     
     if (lowerQuery.includes('what can you do') || lowerQuery.includes('how can you help')) {
-      return "I can help you with information about our products, services, pricing, and general inquiries. I've been trained on company-specific data to provide you with accurate and helpful responses.";
+      return "I can help you with information about our products, services, pricing, and general inquiries. I can also analyze the data you've uploaded to provide insights specific to your content.";
     }
     
     // Default chatbot response
-    return "Thank you for your question. Based on the provided context, I can help answer questions related to your specific data. Please feel free to ask me anything specific, and I'll do my best to assist you with accurate information.";
+    return "Thank you for your question. I'll do my best to help based on the information provided. If you've uploaded any documents, I'll consider that context in my response.";
   }
   
-  // General queries (not chatbot)
-  const defaultResponse = "I'm your AI assistant for this platform. I can help answer questions based on the information provided. What specific information are you looking for?";
-  
-  return defaultResponse;
+  // Default fallback response
+  return "I'm your AI assistant powered by Gemini. I can help answer questions based on the information provided. What specific information are you looking for?";
 };
