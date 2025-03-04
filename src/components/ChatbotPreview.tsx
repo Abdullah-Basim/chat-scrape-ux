@@ -1,19 +1,11 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
-import { 
-  Loader2, 
-  Send, 
-  ThumbsUp, 
-  ThumbsDown, 
-  Code, 
-  Download,
-  MessageSquare
-} from "lucide-react";
+import { Loader2, Send, ThumbsUp, ThumbsDown, Code, Download, MessageSquare } from "lucide-react";
 import { getChatbotResponse, getEmbedCode } from '@/services/chatbot.service';
 
 interface Message {
@@ -23,11 +15,11 @@ interface Message {
 }
 
 interface ChatbotPreviewProps {
-  modelId: string | null;
+  sessionId: string | null;
   status: 'idle' | 'uploading' | 'processing' | 'success' | 'error';
 }
 
-const ChatbotPreview = ({ modelId, status }: ChatbotPreviewProps) => {
+const ChatbotPreview = ({ sessionId, status }: ChatbotPreviewProps) => {
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -38,7 +30,6 @@ const ChatbotPreview = ({ modelId, status }: ChatbotPreviewProps) => {
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [trainingProgress, setTrainingProgress] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [embedCode, setEmbedCode] = useState<string>('');
@@ -53,29 +44,10 @@ const ChatbotPreview = ({ modelId, status }: ChatbotPreviewProps) => {
     scrollToBottom();
   }, [messages]);
 
-  useEffect(() => {
-    // Simulate training progress when processing
-    if (status === 'processing') {
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += Math.random() * 10;
-        if (progress > 100) {
-          progress = 100;
-          clearInterval(interval);
-        }
-        setTrainingProgress(progress);
-      }, 800);
-      
-      return () => clearInterval(interval);
-    } else if (status === 'success') {
-      setTrainingProgress(100);
-    }
-  }, [status]);
-
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
-    if (!inputValue.trim() || !modelId) return;
+    if (!inputValue.trim() || !sessionId) return;
     
     const userMessage: Message = {
       role: 'user',
@@ -95,7 +67,7 @@ const ChatbotPreview = ({ modelId, status }: ChatbotPreviewProps) => {
 
     try {
       console.log(`Sending message to chatbot: ${inputValue}`);
-      const response = await getChatbotResponse(modelId, inputValue);
+      const response = await getChatbotResponse(sessionId, inputValue);
       
       const botMessage: Message = {
         role: 'bot',
@@ -139,10 +111,10 @@ const ChatbotPreview = ({ modelId, status }: ChatbotPreviewProps) => {
   };
 
   const getEmbedCodeForChatbot = async () => {
-    if (!modelId) return;
+    if (!sessionId) return;
     
     try {
-      const code = await getEmbedCode(modelId);
+      const code = await getEmbedCode(sessionId);
       setEmbedCode(code);
       setActiveTab('embed');
     } catch (error) {
@@ -155,14 +127,12 @@ const ChatbotPreview = ({ modelId, status }: ChatbotPreviewProps) => {
     }
   };
 
-  if (status === 'uploading' || status === 'processing') {
+  if (status === 'uploading') {
     return (
       <Card className="p-6 h-full flex flex-col">
         <div className="flex items-center space-x-2 mb-6">
           <MessageSquare className="text-primary h-5 w-5" />
-          <h3 className="text-lg font-medium">
-            {status === 'uploading' ? 'Uploading Training Data' : 'Training Your Chatbot'}
-          </h3>
+          <h3 className="text-lg font-medium">Processing Training Data</h3>
         </div>
         
         <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6">
@@ -170,27 +140,12 @@ const ChatbotPreview = ({ modelId, status }: ChatbotPreviewProps) => {
             <Loader2 className="h-8 w-8 text-primary animate-spin" />
           </div>
           
-          {status === 'uploading' ? (
-            <div className="space-y-2">
-              <p className="font-medium">Uploading your files</p>
-              <p className="text-sm text-muted-foreground">
-                Your files are being securely uploaded and processed
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2 w-full max-w-md">
-              <p className="font-medium">Training your custom chatbot</p>
-              <p className="text-sm text-muted-foreground mb-2">
-                This process typically takes 3-5 minutes depending on the amount of data
-              </p>
-              <Progress value={trainingProgress} className="h-2" />
-              <p className="text-xs text-muted-foreground">
-                {trainingProgress < 100 
-                  ? `Training progress: ${Math.round(trainingProgress)}%`
-                  : 'Training complete! Preparing your chatbot...'}
-              </p>
-            </div>
-          )}
+          <div className="space-y-2">
+            <p className="font-medium">Processing your files</p>
+            <p className="text-sm text-muted-foreground">
+              Your files are being securely uploaded and processed
+            </p>
+          </div>
         </div>
       </Card>
     );
@@ -304,14 +259,14 @@ const ChatbotPreview = ({ modelId, status }: ChatbotPreviewProps) => {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Type your message..."
-              disabled={!modelId || isTyping}
+              disabled={!sessionId || isTyping}
               className="flex-1"
               autoComplete="off"
             />
             <Button 
               type="submit" 
               size="icon" 
-              disabled={!inputValue.trim() || !modelId || isTyping}
+              disabled={!inputValue.trim() || !sessionId || isTyping}
             >
               <Send className="h-4 w-4" />
             </Button>
@@ -380,7 +335,7 @@ const ChatbotPreview = ({ modelId, status }: ChatbotPreviewProps) => {
               
               <Button 
                 onClick={getEmbedCodeForChatbot}
-                disabled={!modelId}
+                disabled={!sessionId}
               >
                 Generate Embed Code
               </Button>

@@ -5,24 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { MessageSquare, Upload, X, FileText, Database, Loader2 } from "lucide-react";
-import { uploadChatbotData, fineTuneChatbotModel } from '@/services/chatbot.service';
+import { uploadChatbotData } from '@/services/chatbot.service';
 
 interface ChatbotFormProps {
-  onModelCreated: (modelId: string) => void;
+  onSessionCreated: (sessionId: string) => void;
   onStatusChange: (status: 'idle' | 'uploading' | 'processing' | 'success' | 'error') => void;
 }
 
-const ChatbotForm = ({ onModelCreated, onStatusChange }: ChatbotFormProps) => {
+const ChatbotForm = ({ onSessionCreated, onStatusChange }: ChatbotFormProps) => {
   const { toast } = useToast();
   const [chatbotName, setChatbotName] = useState('');
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [pdfFiles, setPdfFiles] = useState<File[]>([]);
-  const [isAdvancedOptions, setIsAdvancedOptions] = useState(false);
-  const [isPersonalized, setIsPersonalized] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
 
@@ -111,35 +107,20 @@ const ChatbotForm = ({ onModelCreated, onStatusChange }: ChatbotFormProps) => {
       setIsUploading(true);
       onStatusChange('uploading');
       
-      // Upload files
+      // Upload files and create session
       const uploadResult = await uploadChatbotData(chatbotName, csvFile, pdfFiles);
       
       if (!uploadResult.success) {
         throw new Error(uploadResult.error || 'Upload failed');
       }
       
-      setIsUploading(false);
-      setIsProcessing(true);
-      onStatusChange('processing');
-      
-      // Start fine-tuning
-      const fineTuneResult = await fineTuneChatbotModel(
-        uploadResult.dataId, 
-        chatbotName,
-        isPersonalized
-      );
-      
-      if (!fineTuneResult.success) {
-        throw new Error(fineTuneResult.error || 'Fine-tuning failed');
-      }
-      
-      // Successfully created model
-      onModelCreated(fineTuneResult.modelId);
+      // Successfully created session
+      onSessionCreated(uploadResult.sessionId!);
       onStatusChange('success');
       
       toast({
         title: "Chatbot Created",
-        description: "Your chatbot has been successfully created and trained with your data",
+        description: "Your chatbot has been successfully created with your data",
       });
     } catch (error) {
       console.error("Chatbot creation error:", error);
@@ -151,7 +132,6 @@ const ChatbotForm = ({ onModelCreated, onStatusChange }: ChatbotFormProps) => {
       });
     } finally {
       setIsUploading(false);
-      setIsProcessing(false);
     }
   };
 
@@ -164,7 +144,7 @@ const ChatbotForm = ({ onModelCreated, onStatusChange }: ChatbotFormProps) => {
         </div>
         
         <p className="text-muted-foreground text-sm mb-6">
-          Upload your data files and create a custom AI chatbot with one click.
+          Upload your data files and create a custom AI chatbot with Gemini.
         </p>
         
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -175,7 +155,7 @@ const ChatbotForm = ({ onModelCreated, onStatusChange }: ChatbotFormProps) => {
               placeholder="My Company Assistant"
               value={chatbotName}
               onChange={(e) => setChatbotName(e.target.value)}
-              disabled={isUploading || isProcessing}
+              disabled={isUploading}
             />
           </div>
           
@@ -188,14 +168,14 @@ const ChatbotForm = ({ onModelCreated, onStatusChange }: ChatbotFormProps) => {
                 accept=".csv"
                 onChange={handleCsvSelect}
                 className="hidden"
-                disabled={isUploading || isProcessing}
+                disabled={isUploading}
               />
               <Button
                 type="button"
                 variant="outline"
                 className="w-full flex items-center justify-center"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading || isProcessing || csvFile !== null}
+                disabled={isUploading || csvFile !== null}
               >
                 <Database className="mr-2 h-4 w-4" />
                 Select CSV File
@@ -206,7 +186,7 @@ const ChatbotForm = ({ onModelCreated, onStatusChange }: ChatbotFormProps) => {
                   variant="ghost"
                   size="icon"
                   onClick={clearCsvFile}
-                  disabled={isUploading || isProcessing}
+                  disabled={isUploading}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -235,14 +215,14 @@ const ChatbotForm = ({ onModelCreated, onStatusChange }: ChatbotFormProps) => {
                 multiple
                 onChange={handlePdfSelect}
                 className="hidden"
-                disabled={isUploading || isProcessing}
+                disabled={isUploading}
               />
               <Button
                 type="button"
                 variant="outline"
                 className="w-full flex items-center justify-center"
                 onClick={() => pdfInputRef.current?.click()}
-                disabled={isUploading || isProcessing}
+                disabled={isUploading}
               >
                 <Upload className="mr-2 h-4 w-4" />
                 Upload PDF Files
@@ -269,7 +249,7 @@ const ChatbotForm = ({ onModelCreated, onStatusChange }: ChatbotFormProps) => {
                         size="icon"
                         className="h-6 w-6"
                         onClick={() => removePdfFile(index)}
-                        disabled={isUploading || isProcessing}
+                        disabled={isUploading}
                       >
                         <X className="h-3 w-3" />
                       </Button>
@@ -280,49 +260,15 @@ const ChatbotForm = ({ onModelCreated, onStatusChange }: ChatbotFormProps) => {
             )}
           </div>
           
-          <div className="flex items-center space-x-2 pt-2">
-            <Switch
-              id="advanced-options"
-              checked={isAdvancedOptions}
-              onCheckedChange={setIsAdvancedOptions}
-              disabled={isUploading || isProcessing}
-            />
-            <Label htmlFor="advanced-options">Show advanced options</Label>
-          </div>
-          
-          {isAdvancedOptions && (
-            <div className="space-y-4 bg-muted/30 p-4 rounded-md">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="personalization" className="block mb-1">Personalization</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Tune the model to match your company's tone and style
-                  </p>
-                </div>
-                <Switch
-                  id="personalization"
-                  checked={isPersonalized}
-                  onCheckedChange={setIsPersonalized}
-                  disabled={isUploading || isProcessing}
-                />
-              </div>
-            </div>
-          )}
-          
           <Button 
             type="submit" 
             className="w-full" 
-            disabled={isUploading || isProcessing}
+            disabled={isUploading}
           >
             {isUploading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Uploading Files...
-              </>
-            ) : isProcessing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Training Chatbot...
+                Processing Files...
               </>
             ) : (
               <>Create Chatbot</>

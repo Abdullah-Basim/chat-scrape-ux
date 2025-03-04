@@ -14,7 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 const ChatbotBuilder = () => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [modelId, setModelId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'uploading' | 'processing' | 'success' | 'error'>('idle');
   const [isGeminiHelping, setIsGeminiHelping] = useState(false);
   const [showUpdatedNotice, setShowUpdatedNotice] = useState(true);
@@ -27,16 +27,20 @@ const ChatbotBuilder = () => {
     }
   }, [showUpdatedNotice]);
 
-  const handleModelCreated = (newModelId: string) => {
-    setModelId(newModelId);
+  const handleSessionCreated = (newSessionId: string) => {
+    setSessionId(newSessionId);
     
-    // Save model creation to history if user is logged in
+    // Save session creation to history if user is logged in
     if (user) {
-      saveLLMHistory(user.id, 'chatbot', {
-        action: 'model_created',
-        modelId: newModelId,
-        timestamp: new Date().toISOString()
-      });
+      try {
+        saveLLMHistory(user.id, 'chatbot', {
+          action: 'session_created',
+          sessionId: newSessionId,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Error saving LLM history:", error);
+      }
     }
   };
 
@@ -45,11 +49,15 @@ const ChatbotBuilder = () => {
     
     // Save status changes to history if user is logged in
     if (user && newStatus !== 'idle') {
-      saveLLMHistory(user.id, 'chatbot', {
-        action: 'status_changed',
-        status: newStatus,
-        timestamp: new Date().toISOString()
-      });
+      try {
+        saveLLMHistory(user.id, 'chatbot', {
+          action: 'status_changed',
+          status: newStatus,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Error saving LLM history:", error);
+      }
     }
   };
 
@@ -67,10 +75,14 @@ const ChatbotBuilder = () => {
       
       // Save Gemini help request to history if user is logged in
       if (user) {
-        saveLLMHistory(user.id, 'chatbot', {
-          action: 'gemini_help_requested',
-          timestamp: new Date().toISOString()
-        });
+        try {
+          saveLLMHistory(user.id, 'chatbot', {
+            action: 'gemini_help_requested',
+            timestamp: new Date().toISOString()
+          });
+        } catch (error) {
+          console.error("Error saving LLM history:", error);
+        }
       }
     } catch (error) {
       console.error("Gemini help error:", error);
@@ -90,10 +102,10 @@ const ChatbotBuilder = () => {
         {showUpdatedNotice && (
           <Alert className="mb-6 border-primary/50 bg-primary/10">
             <Info className="h-4 w-4 text-primary" />
-            <AlertTitle>Module Updated!</AlertTitle>
+            <AlertTitle>Simplified Chatbot Interface!</AlertTitle>
             <AlertDescription>
-              The chatbot now uses the Gemini API to provide real AI responses to your questions.
-              Try uploading your training data and test the improved functionality.
+              We've simplified our chatbot to directly use Gemini API with your uploaded data. 
+              Simply upload your training files and start chatting immediately.
             </AlertDescription>
             <Button 
               variant="ghost" 
@@ -109,8 +121,8 @@ const ChatbotBuilder = () => {
         <div className="py-12 text-center animate-fade-up">
           <h1 className="text-3xl md:text-4xl font-bold mb-4">Chatbot Development Module</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Create a custom AI chatbot with a single click by uploading your data.
-            Our system will automatically train a personalized model for your needs.
+            Create a custom AI chatbot powered by Google's Gemini API.
+            Just upload your data and start chatting right away.
           </p>
           <div className="flex justify-center mt-4">
             <Button 
@@ -131,14 +143,14 @@ const ChatbotBuilder = () => {
         <div className="grid md:grid-cols-12 gap-8">
           <div className="md:col-span-5">
             <ChatbotForm 
-              onModelCreated={handleModelCreated}
+              onSessionCreated={handleSessionCreated}
               onStatusChange={handleStatusChange}
             />
           </div>
           
           <div className="md:col-span-7">
             <ChatbotPreview 
-              modelId={modelId}
+              sessionId={sessionId}
               status={status}
             />
           </div>
