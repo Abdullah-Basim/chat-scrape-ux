@@ -67,9 +67,11 @@ Please respond to this message using the context when relevant:
   }
 };
 
-// Export for compatibility with other components
+// Simple compatibility functions for other components
 export const getChatbotResponse = getChatResponse;
-export const uploadChatbotData = processDocuments;
+export const uploadChatbotData = (csvFile: File | null, pdfFiles: File[]): Promise<string> => {
+  return processDocuments(csvFile, pdfFiles);
+};
 export const getEmbedCode = (chatbotId: string): string => {
   return `<iframe src="https://your-chatbot-service.com/embed/${chatbotId}" width="100%" height="500" frameborder="0"></iframe>`;
 };

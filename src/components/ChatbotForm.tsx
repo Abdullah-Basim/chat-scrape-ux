@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -108,14 +107,10 @@ const ChatbotForm = ({ onSessionCreated, onStatusChange }: ChatbotFormProps) => 
       onStatusChange('uploading');
       
       // Upload files and create session
-      const uploadResult = await uploadChatbotData(chatbotName, csvFile, pdfFiles);
-      
-      if (!uploadResult.success) {
-        throw new Error(uploadResult.error || 'Upload failed');
-      }
+      const contextId = await uploadChatbotData(csvFile, pdfFiles);
       
       // Successfully created session
-      onSessionCreated(uploadResult.sessionId!);
+      onSessionCreated(contextId);
       onStatusChange('success');
       
       toast({

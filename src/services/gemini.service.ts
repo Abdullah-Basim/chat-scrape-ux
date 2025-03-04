@@ -10,9 +10,8 @@ export const askGeminiForHelp = async (query: string, retries = 2): Promise<stri
   
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      // Updated URL to use the correct API endpoint and model
-      // Using gemini-1.0-pro model instead of gemini-pro which was causing 404 errors
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent', {
+      // Using the correct model name - gemini-pro instead of gemini-1.0-pro
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

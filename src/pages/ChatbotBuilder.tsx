@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,8 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
-import { MessageSquare, Send, Upload, X, FileText, Database, HelpCircle } from "lucide-react";
-import { askGeminiForHelp } from '@/services/gemini.service';
+import { MessageSquare, Send, Upload, X, FileText, Database } from "lucide-react";
 import { processDocuments, getChatResponse } from '@/services/chatbot.service';
 
 interface Message {
