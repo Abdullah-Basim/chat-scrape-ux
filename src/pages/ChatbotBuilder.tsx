@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
 import { MessageSquare, Send, Upload, X, FileText, Database, HelpCircle } from "lucide-react";
-import { askGeminiForHelp, processDocuments, getChatResponse } from '@/services/chatbot.service';
+import { askGeminiForHelp } from '@/services/gemini.service';
+import { processDocuments, getChatResponse } from '@/services/chatbot.service';
 
 interface Message {
   role: 'user' | 'assistant';

@@ -1,5 +1,5 @@
 
-// Re-export needed functions from gemini.service
+// Import needed functions from gemini.service
 import { askGeminiForHelp } from './gemini.service';
 
 // Process uploaded files and get context from them
@@ -65,4 +65,11 @@ Please respond to this message using the context when relevant:
     console.error("Error getting chatbot response:", error);
     return "I'm sorry, I'm having trouble responding right now. Please try again in a moment.";
   }
+};
+
+// Export for compatibility with other components
+export const getChatbotResponse = getChatResponse;
+export const uploadChatbotData = processDocuments;
+export const getEmbedCode = (chatbotId: string): string => {
+  return `<iframe src="https://your-chatbot-service.com/embed/${chatbotId}" width="100%" height="500" frameborder="0"></iframe>`;
 };
